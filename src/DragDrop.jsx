@@ -1,212 +1,244 @@
-import React, { useRef, useState } from "react";
+import React, { useState } from "react";
+import Select from 'react-select';
 
-const DragDrop = () => {
-  const [tasks, setTasks] = useState({
-    todo: ["Task 1", "Task 2", "Task 3", "Task 6", "Task 7", "Task 8", "Task 9", "Task 10", "Task 11", "Task 12", "Task 13"],
-    inprogress: ["Task 4"],
-    complete: ["Task 5"],
+const App = () => {
+  const [items, setItems] = useState([]);
+  const [newItem, setNewItem] = useState({
+    name: "",
+    description: "",
+    quantity: 1,
+    rate: 0,
+    tax: 0,
+    discount_type : {value : 'no_discount', label : 'No Discount'}
   });
 
-  const itemRef = useRef(null);
-  const selectRef = useRef(null);
+  const options = [
+    { value: 'no_discount', label: 'No Discount' },
+    { value: 'befor_tax', label: 'Befor Tax' },
+    { value: 'after_tax', label: 'After Tax' },
+  ];
 
-  const [isLiTag, setIsLiTag] = useState(false);
-  const [itemName, setItemName] = useState('');
-  const [selectLable, setSelectLable] = useState('');
-
-  const addItemNew = () => {
-    if (itemName.trim() == '') {
-      itemRef.current.focus();
-      itemRef.current.style.border = '1px solid red';
-      return;
-    }else if (selectLable == '') {
-      selectRef.current.style.border = '1px solid red';
-      return;
-    }
-    const additems = tasks[selectLable];
-    additems.push(itemName)
-    setTasks(
-       { ...tasks, [selectLable]: additems }
-    );
-    setItemName('');
-    setSelectLable('');
-  }
-
-  const onDragStart = (e, task, source, index) => {
-    e.dataTransfer.setData("task", task);
-    e.dataTransfer.setData("source", source);
-    e.dataTransfer.setData("index", index);
-    console.log("index: onDragStart " , index);
-
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setNewItem((prev) => ({ ...prev, [name]: value }));
   };
 
-  const onDrop = (e, index, destination) => {
-    e.preventDefault();
-    const task = e.dataTransfer.getData("task");
-    const source = e.dataTransfer.getData("source");
-    const oldindex = Number(e.dataTransfer.getData("index"));
-    let newIndex = index
-    if (newIndex == undefined) {
-        newIndex = tasks[destination].length;
-    }    
+  const addItem = () => {
+    const { quantity, rate, tax } = newItem;
 
-    if (source === destination) {
-      setTasks((prevTasks) => {
-        const columnTasks = [...prevTasks[source]];
-        columnTasks.splice(oldindex, 1); 
-        columnTasks.splice(newIndex, 0, task);
-        return { ...prevTasks, [source]: columnTasks };
-      });
-    } else {
-      setTasks((prevTasks) => {
-        const sourceTasks = [...prevTasks[source]];
-        const destinationTasks = [...prevTasks[destination]];
+    const amount = Number(quantity) * Number(rate);
+    const taxAmount = (amount * Number(tax)) / 100;
+    const subTotal = amount + taxAmount
 
-        sourceTasks.splice(oldindex, 1); 
-        destinationTasks.splice(newIndex, 0, task); 
-
-        return {
-          ...prevTasks,
-          [source]: sourceTasks,
-          [destination]: destinationTasks,
-        };
-      });
-    }
+    setItems((prev) => [...prev, { ...newItem, amount, taxAmount, subTotal }]);
+    setNewItem({ name: "", description: "", quantity: 1, rate: 0, tax: 0 });
   };
 
-  const onDragOver = (e) => {
-    e.preventDefault();
+  const updateItem = (index, field, value) => {
+    setItems((prev) => {
+      const updatedItems = [...prev];
+      updatedItems[index] = {
+        ...updatedItems[index],
+        [field]: value,
+      };
+
+      // Recalculate Amount and Tax if related fields change
+      if (field === "quantity" || field === "rate" || field === "tax") {
+        const quantity = Number(updatedItems[index].quantity);
+        const rate = Number(updatedItems[index].rate);
+        const tax = Number(updatedItems[index].tax);
+
+        const amount = quantity * rate;
+        const taxAmount = (amount * tax) / 100;
+        const subTotal = amount + taxAmount
+
+        updatedItems[index].amount = amount;
+        updatedItems[index].taxAmount = taxAmount;
+        updatedItems[index].subTotal = subTotal;
+      }
+
+      return updatedItems;
+    });
   };
+
+  const totalAmount = items.reduce((sum, item) => sum + item.amount, 0);
+  const totalTax = items.reduce((sum, item) => sum + item.taxAmount, 0);
 
   return (
-    <div className="h-screen bg-gray-100 p-8 my-10">
-      <h1 className="text-4xl font-bold text-center mb-8">Drag & Drop To-Do</h1>
-      <div className="flex justify-end my-3 gap-4">
-        <div className="flex gap-3 ">
-          <input 
-            ref={itemRef}
-            type="text" 
-            name="item"
-            placeholder="Enter your item name here"
-            className="flex w-96 border-0 appearance-none border-none outline-none bg-gray-100 p-2 rounded-md ring-2 ring-blue-300 "
-            value={itemName}
-            onChange={(e) =>{
-               setItemName(e.target.value);
-               itemRef.current.style.border = 'none';
-               }} />
-          <div className="flex justify-center items-center w-40">
-            <select 
-            ref={selectRef}
-            className="h-full w-40 appearance-none border-none outline-none bg-gray-100 p-2 rounded-md ring-2 ring-blue-300"
-            value={selectLable}
-            onClick={() =>{
-              selectRef.current.style.border = 'none';
-            }}
-            onChange={(e) => setSelectLable(e.target.value)}
-            >
-              <option value="select_task" label="Select Task" key="item" hidden></option>
-              <option value="todo" label="To-Do" key="item1"></option>
-              <option value="inprogress" label="In Progress" key="item2"></option>
-              <option value="complete" label="complete" key="item3"></option>
-            </select>
+    <div className="p-6 w-full mx-auto">
+      <h1 className="text-2xl font-bold mb-6">Expense Manager</h1>
+
+      {/* Add Item Form */}
+      <div className="bg-gray-100 p-6 rounded-md mb-8">
+        <div className="flex justify-between items-center">
+          <div></div>
+          <h2 className="text-xl font-semibold mb-4">Add New Item</h2>
+          <button
+            onClick={addItem}
+            className=" bg-blue-500 text-white py-2 px-4 rounded-md"
+          >
+            Add Item
+          </button>
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-start text-sm font-medium mb-1">Item Name</label>
+            <input
+              type="text"
+              name="name"
+              placeholder="Item Name"
+              value={newItem.name}
+              onChange={handleInputChange}
+              className="w-full p-2 border rounded-md appearance-none outline-none focus:ring-1 focus:ring-blue-300"
+            />
+          </div>
+          <div>
+            <label className="block text-start text-sm font-medium mb-1">Description</label>
+            <input
+              type="text"
+              name="description"
+              placeholder="Description"
+              value={newItem.description}
+              onChange={handleInputChange}
+              className="w-full p-2 border rounded-md appearance-none outline-none focus:ring-1 focus:ring-blue-300"
+            />
+          </div>
+          <div>
+            <label className="block text-start text-sm font-medium mb-1">Quantity</label>
+            <input
+              type="number"
+              name="quantity"
+              placeholder="Quantity"
+              value={newItem.quantity}
+              onChange={handleInputChange}
+              className="w-full p-2 border rounded-md appearance-none outline-none focus:ring-1 focus:ring-blue-300"
+            />
+          </div>
+          <div>
+            <label className="block text-start text-sm font-medium mb-1">Rate</label>
+            <input
+              type="number"
+              name="rate"
+              placeholder="Rate"
+              value={newItem.rate}
+              onChange={handleInputChange}
+              className="w-full p-2 border rounded-md appearance-none outline-none focus:ring-1 focus:ring-blue-300"
+            />
+          </div>
+          <div>
+            <label className="block text-sm text-start font-medium mb-1">Tax (%)</label>
+            <input
+              type="number"
+              name="tax"
+              placeholder="Tax %"
+              value={newItem.tax}
+              onChange={handleInputChange}
+              className="w-full p-2 border rounded-md appearance-none outline-none focus:ring-1 focus:ring-blue-300"
+            />
+          </div>
+          <div>
+            <label className="block text-start text-sm font-medium mb-1">Discount Type</label>
+            <Select
+              defaultValue={newItem.discount_type}
+              options={options}
+              className="w-full"
+              styles={{
+                control: (base) => ({
+                  ...base,
+                  borderColor: "#d1d5db", // Tailwind gray-300
+                  boxShadow: "none",
+                  "&:hover": { borderColor: "#93c5fd" }, // Tailwind blue-300
+                }),
+              }}
+            />
           </div>
         </div>
-        <div className="hover:bg-blue-400 cursor-pointer group flex items-center rounded-md bg-blue-500 text-white text-sm font-medium pl-2 pr-3 py-2 shadow-sm"
-          onClick={()=>{
-            addItemNew();
-          }}
-        >
-        <svg width="20" height="20" fill="currentColor" className="mr-2" aria-hidden="true">
-          <path d="M10 5a1 1 0 0 1 1 1v3h3a1 1 0 1 1 0 2h-3v3a1 1 0 1 1-2 0v-3H6a1 1 0 1 1 0-2h3V6a1 1 0 0 1 1-1Z" />
-        </svg>
-        New Add
       </div>
+
+      {/* Editable Items Table */}
+      <div className="bg-white shadow-md rounded-md p-4">
+        <h2 className="text-xl font-semibold mb-4">Items List</h2>
+        <table className="w-full table-auto border-collapse">
+          <thead>
+            <tr className="bg-gray-100 text-left">
+              <th className="p-2 border">Name</th>
+              <th className="p-2 border">Description</th>
+              <th className="p-2 border">Quantity</th>
+              <th className="p-2 border">Rate</th>
+              <th className="p-2 border">Tax (%)</th>
+              <th className="p-2 border">Amount</th>
+              <th className="p-2 border">Tax Amount</th>
+              <th className="p-2 border">Sub Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {items.map((item, index) => (
+              <tr key={index} className="hover:bg-gray-50">
+                <td className="p-2 border">
+                  <input
+                    type="text"
+                    value={item.name}
+                    onChange={(e) => updateItem(index, "name", e.target.value)}
+                    className="w-full p-1 border rounded-md"
+                  />
+                </td>
+                <td className="p-2 border">
+                  <input
+                    type="text"
+                    value={item.description}
+                    onChange={(e) =>
+                      updateItem(index, "description", e.target.value)
+                    }
+                    className="w-full p-1 border rounded-md"
+                  />
+                </td>
+                <td className="p-2 border">
+                  <input
+                    type="number"
+                    value={item.quantity}
+                    onChange={(e) =>
+                      updateItem(index, "quantity", e.target.value)
+                    }
+                    className="w-full p-1 border rounded-md text-center"
+                  />
+                </td>
+                <td className="p-2 border">
+                  <input
+                    type="number"
+                    value={item.rate}
+                    onChange={(e) => updateItem(index, "rate", e.target.value)}
+                    className="w-full p-1 border rounded-md text-right"
+                  />
+                </td>
+                <td className="p-2 border">
+                  <input
+                    type="number"
+                    value={item.tax}
+                    onChange={(e) => updateItem(index, "tax", e.target.value)}
+                    className="w-full p-1 border rounded-md text-right"
+                  />
+                </td>
+                <td className="p-2 border text-right">${item.amount.toFixed(2)}</td>
+                <td className="p-2 border text-right">
+                  ${item.taxAmount.toFixed(2)}
+                </td>
+                <td className="p-2 border text-right">
+                  ${item.subTotal.toFixed(2)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
-      <div className=" min-h-[450px] max-h-[450px] ma mb-5 grid grid-cols-1 md:grid-cols-3 gap-6 ">
-        <TaskColumn
-          title="To-Do"
-          tasks={tasks.todo}
-          onDragStart={(e, task, index) => onDragStart(e, task, "todo", index)}
-          onDrop={(e, i) => onDrop(e, i, "todo")}
-          onDragOver={onDragOver}
-          setIsLiTag={setIsLiTag}
-          isLiTag={isLiTag}
 
-        />
-        <TaskColumn
-          title="In Progress"
-          tasks={tasks.inprogress}
-          onDragStart={(e, task, index) =>
-            onDragStart(e, task, "inprogress", index)
-          }
-          onDrop={(e, i) => onDrop(e, i, "inprogress")}
-          onDragOver={onDragOver}
-          setIsLiTag={setIsLiTag}
-          isLiTag={isLiTag}
-
-        />
-        <TaskColumn
-          title="Complete"
-          tasks={tasks.complete}
-          onDragStart={(e, task, index) =>
-            onDragStart(e, task, "complete", index)
-          }
-          onDrop={(e, i) => onDrop(e, i, "complete")}
-          onDragOver={onDragOver}
-          setIsLiTag={setIsLiTag}
-          isLiTag={isLiTag}
-        />
+      {/* Summary */}
+      <div className="bg-gray-50 mt-6 p-4 rounded-md shadow-md">
+        <h2 className="text-xl font-semibold">Summary</h2>
+        <p>Total Amount: ${totalAmount.toFixed(2)}</p>
+        <p>Total Tax: ${totalTax.toFixed(2)}</p>
       </div>
     </div>
   );
 };
 
-// Task Column Component
-const TaskColumn = ({ title, tasks, onDragStart, onDrop, onDragOver, setIsLiTag, isLiTag }) => (
-  <div
-    className="h-full bg-white pt-0 p-6 rounded-lg shadow-md"
-    onDragOver={onDragOver}
-    onDrop={(e) => {
-      if (isLiTag) {
-        onDrop(e);
-      }
-    }}
-  >
-    {/* Sticky Header */}
-    <h2 className="text-xl font-semibold h-10 mb-4 z-50 sticky top-0 bg-white shadow-sm">
-      {title}
-    </h2>
-    {/* Scrollable Content */}
-    <div className="overflow-y-auto max-h-[350px] scrollbar-hide">
-      <ul className="space-y-3">
-        {tasks.map((task, index) => (
-          <TaskItem
-            key={task}
-            task={task}
-            index={index}
-            onDrop={onDrop}
-            onDragStart={onDragStart}
-            setIsLiTag={setIsLiTag}
-          />
-        ))}
-      </ul>
-    </div>
-  </div>
-);
-
-
-// Task Item Component
-const TaskItem = ({ task, index, onDragStart, onDrop, setIsLiTag }) => (
-  <li
-    className="bg-gray-100 p-3 rounded-lg shadow-sm cursor-pointer hover:bg-gray-200"
-    draggable
-    onDragStart={(e) => onDragStart(e, task, index)}
-    onDrop={(e) => onDrop(e,index)}  
-    onDragEnter={() => setIsLiTag(false) }
-    onDragLeave={() => setIsLiTag(true)}
-  >
-    {task}
-  </li>
-);
-
-export default DragDrop;
+export default App;
