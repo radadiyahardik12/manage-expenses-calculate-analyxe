@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Select from 'react-select';
 
 const App = () => {
@@ -9,13 +9,25 @@ const App = () => {
     quantity: 1,
     rate: 0,
     tax: 0,
-    discount_type : {value : 'no_discount', label : 'No Discount'}
+    discount_amount  : 0,
+    after_discount : 0 ,
   });
+  
+  const [itemDicount, setItemDicount] = useState({
+    tax_discount_type : {value : 'no_discount', label : 'No Discount'},
+    discount_type : {value : 'percentage', label : '%'},
+    discount_value : 0,
+  })
 
-  const options = [
+  const discountOptions = [
     { value: 'no_discount', label: 'No Discount' },
     { value: 'befor_tax', label: 'Befor Tax' },
     { value: 'after_tax', label: 'After Tax' },
+  ];
+
+  const amountDiscountOptions = [
+    { value: 'percentage', label: '%' },
+    { value: 'fixed', label: 'Fixed' },
   ];
 
   const handleInputChange = (e) => {
@@ -35,44 +47,120 @@ const App = () => {
   };
 
   const updateItem = (index, field, value) => {
-    setItems((prev) => {
-      const updatedItems = [...prev];
-      updatedItems[index] = {
-        ...updatedItems[index],
-        [field]: value,
-      };
 
-      // Recalculate Amount and Tax if related fields change
-      if (field === "quantity" || field === "rate" || field === "tax") {
-        const quantity = Number(updatedItems[index].quantity);
-        const rate = Number(updatedItems[index].rate);
-        const tax = Number(updatedItems[index].tax);
-
-        const amount = quantity * rate;
-        const taxAmount = (amount * tax) / 100;
-        const subTotal = amount + taxAmount
-
-        updatedItems[index].amount = amount;
-        updatedItems[index].taxAmount = taxAmount;
-        updatedItems[index].subTotal = subTotal;
+    const updatedItemss = items.map((up, i) => {
+      if (i === index) {
+        return {
+         ...up,
+          [field]: value,
+        };
       }
+      return up;
+    })
 
-      return updatedItems;
-    });
+    const updatenewItem = updatedItemss.map((cc) =>{
+      if (itemDicount.tax_discount_type.value == 'befor_tax') {
+        if (itemDicount.discount_type.value == 'percentage') {
+          const amount = Number(Number(cc.quantity) * Number(cc.rate));
+          const discount_amount = Number(itemDicount.discount_value) * 0.01 * amount
+          const taxAmount = Number(amount- discount_amount)  * Number(cc.tax) * 0.01;
+          const subTotal = Number(amount- discount_amount) + taxAmount;
+           return {...cc, amount, taxAmount, subTotal, discount_amount}
+        }else{
+          const amount = (Number(cc.quantity) * Number(cc.rate))
+          const discount_amount = Number(itemDicount.discount_value)/ items.length ;
+          const taxAmount = Number(amount- discount_amount) * Number(cc.tax) * 0.01;
+          const subTotal = Number(amount) + taxAmount - discount_amount;
+          return {...cc, amount, taxAmount, subTotal, discount_amount}
+        }
+        
+       }else if (itemDicount.tax_discount_type.value == 'after_tax') {
+        if (itemDicount.discount_type.value == 'percentage') {
+          const amount = Number(Number(cc.quantity) * Number(cc.rate));
+          const taxAmount = Number(amount)  * Number(cc.tax) * 0.01;
+          const discount_amount = Number(itemDicount.discount_value) * 0.01 * (amount + taxAmount)
+          const subTotal = amount + taxAmount - discount_amount;
+           return {...cc, amount, taxAmount, subTotal, discount_amount}
+        }else{
+          const amount = (Number(cc.quantity) * Number(cc.rate))
+          const taxAmount = Number(amount) * Number(cc.tax) * 0.01;
+          const discount_amount = Number(itemDicount.discount_value)/ items.length ;
+          const subTotal = amount + taxAmount -discount_amount;
+          return {...cc, amount, taxAmount, subTotal, discount_amount}
+        }
+       }else{
+        const amount = Number(cc.quantity) * Number(cc.rate);
+        const taxAmount =  (amount * Number(cc.tax)) / 100;
+        const subTotal = amount + taxAmount
+        return {...cc, amount, taxAmount, subTotal}
+       }
+      return cc
+    })
+    setItems(updatenewItem);
   };
 
   const totalAmount = items.reduce((sum, item) => sum + item.amount, 0);
-  const totalTax = items.reduce((sum, item) => sum + item.taxAmount, 0);
+  const totalTax = items.reduce((sum, item) => sum + Number(item.taxAmount || 0) , 0);
+  const discountAmount = items.reduce((sum, item) => sum + Number(item.discount_amount || 0) , 0);
+ 
+
+  useEffect(() => {
+
+    if (items && items.length) {
+      const updatenewItem = items.map((cc) =>{
+        if (itemDicount.tax_discount_type.value == 'befor_tax') {
+          if (itemDicount.discount_type.value == 'percentage') {
+            const amount = Number(Number(cc.quantity) * Number(cc.rate));
+            const discount_amount = Number(itemDicount.discount_value) * 0.01 * amount
+            const taxAmount = Number(amount- discount_amount)  * Number(cc.tax) * 0.01;
+            const subTotal = Number(amount- discount_amount) + taxAmount;
+             return {...cc, amount, taxAmount, subTotal, discount_amount}
+          }else{
+            const amount = (Number(cc.quantity) * Number(cc.rate))
+            const discount_amount = Number(itemDicount.discount_value)/ items.length ;
+            const taxAmount = Number(amount- discount_amount) * Number(cc.tax) * 0.01;
+            const subTotal = Number(amount) + taxAmount - discount_amount;
+            return {...cc, amount, taxAmount, subTotal, discount_amount}
+          }
+          
+         }else if (itemDicount.tax_discount_type.value == 'after_tax') {
+          if (itemDicount.discount_type.value == 'percentage') {
+            const amount = Number(Number(cc.quantity) * Number(cc.rate));
+            const taxAmount = Number(amount)  * Number(cc.tax) * 0.01;
+            const discount_amount = Number(itemDicount.discount_value) * 0.01 * (amount + taxAmount)
+            const subTotal = amount + taxAmount - discount_amount;
+             return {...cc, amount, taxAmount, subTotal, discount_amount}
+          }else{
+            const amount = (Number(cc.quantity) * Number(cc.rate))
+            const taxAmount = Number(amount) * Number(cc.tax) * 0.01;
+            const discount_amount = Number(itemDicount.discount_value)/ items.length ;
+            const subTotal = amount + taxAmount -discount_amount;
+            return {...cc, amount, taxAmount, subTotal, discount_amount}
+          }
+         }else{
+          const amount = Number(cc.quantity) * Number(cc.rate);
+          const taxAmount =  (amount * Number(cc.tax)) / 100;
+          const subTotal = amount + taxAmount
+          return {...cc, amount, taxAmount, subTotal}
+         }
+        return cc
+      })
+      
+      setItems(updatenewItem)
+    }
+
+  }, [itemDicount]);
+  
 
   return (
     <div className="p-6 w-full mx-auto">
-      <h1 className="text-2xl font-bold mb-6">Expense Manager</h1>
+      <h1 className="text-2xl font-bold mb-6">Manage Expenses calculation analyze</h1>
 
       {/* Add Item Form */}
       <div className="bg-gray-100 p-6 rounded-md mb-8">
-        <div className="flex justify-between items-center">
+        <div className="flex justify-between items-center mb-2">
           <div></div>
-          <h2 className="text-xl font-semibold mb-4">Add New Item</h2>
+          <h2 className="text-xl font-semibold">Add New Item</h2>
           <button
             onClick={addItem}
             className=" bg-blue-500 text-white py-2 px-4 rounded-md"
@@ -137,11 +225,16 @@ const App = () => {
             />
           </div>
           <div>
-            <label className="block text-start text-sm font-medium mb-1">Discount Type</label>
+            <label className="block text-start text-sm font-medium mb-1">Tax Discount Type</label>
             <Select
-              defaultValue={newItem.discount_type}
-              options={options}
+              defaultValue={itemDicount.tax_discount_type}
+              options={discountOptions}
               className="w-full"
+              onChange={(e) => {
+                setItemDicount({
+                  ...itemDicount, tax_discount_type : e
+                })
+              }}
               styles={{
                 control: (base) => ({
                   ...base,
@@ -156,9 +249,9 @@ const App = () => {
       </div>
 
       {/* Editable Items Table */}
-      <div className="bg-white shadow-md rounded-md p-4">
+      <div className="bg-white shadow-md rounded-md p-4 overflow-x-auto">
         <h2 className="text-xl font-semibold mb-4">Items List</h2>
-        <table className="w-full table-auto border-collapse">
+        <table className="w-full table-auto border-collapse mb-2">
           <thead>
             <tr className="bg-gray-100 text-left">
               <th className="p-2 border">Name</th>
@@ -168,6 +261,8 @@ const App = () => {
               <th className="p-2 border">Tax (%)</th>
               <th className="p-2 border">Amount</th>
               <th className="p-2 border">Tax Amount</th>
+              {itemDicount.tax_discount_type.value === 'no_discount' ? <></> :
+              <th className="p-2 border">Discount Amount</th>}
               <th className="p-2 border">Sub Total</th>
             </tr>
           </thead>
@@ -222,6 +317,10 @@ const App = () => {
                 <td className="p-2 border text-right">
                   ${item.taxAmount.toFixed(2)}
                 </td>
+                {itemDicount.tax_discount_type.value === 'no_discount' ? <></> :
+                  <td className="p-2 border text-right">
+                    ${item && item.discount_amount && item.discount_amount.toFixed(2)}
+                  </td>}
                 <td className="p-2 border text-right">
                   ${item.subTotal.toFixed(2)}
                 </td>
@@ -229,13 +328,52 @@ const App = () => {
             ))}
           </tbody>
         </table>
-      </div>
-
-      {/* Summary */}
-      <div className="bg-gray-50 mt-6 p-4 rounded-md shadow-md">
-        <h2 className="text-xl font-semibold">Summary</h2>
-        <p>Total Amount: ${totalAmount.toFixed(2)}</p>
-        <p>Total Tax: ${totalTax.toFixed(2)}</p>
+        <div className="flex justify-end items-end space-y-3 flex-col">
+          {itemDicount.tax_discount_type.value === 'no_discount' ? <></> :
+          <div className="flex flex-col md:flex-row mt-2 gap-3 w-full md:w-1/2">
+            <div className="flex w-full md:w-2/4 ">
+              <label className="block text-start text-sm font-medium mb-1">Discount Type</label>
+              <Select
+                defaultValue={itemDicount.discount_type}
+                options={amountDiscountOptions}
+                className="w-[154px]"
+                onChange={(e) => {
+                  setItemDicount({
+                    ...itemDicount, discount_type : e
+                  })
+                }}
+                styles={{
+                  control: (base) => ({
+                    ...base,
+                    borderColor: "#d1d5db", // Tailwind gray-300
+                    boxShadow: "none",
+                    "&:hover": { borderColor: "#93c5fd" }, // Tailwind blue-300
+                  }),
+                }}
+              />
+            </div>
+            <div className="flex w-full md:w-3/4 ">
+              <label className="block w-[25%] text-sm text-start font-medium mb-1">Discount Amount</label>
+              <input
+                type="number"
+                name="discount"
+                placeholder="0"
+                value={itemDicount.discount_value}
+                onChange={(e) => {
+                  setItemDicount({
+                    ...itemDicount, discount_value : e.target.value
+                  })
+                }}
+                className="w-[75%] p-2 border rounded-md appearance-none outline-none focus:ring-1 focus:ring-blue-300"
+              />
+            </div>
+            <div className="flex w-full md:w-1/4 items-center justify-end text-end font-semibold border-b">-{discountAmount}</div>
+          </div>
+          }
+          <p className=" font-semibold ">Total Tax: ${totalTax.toFixed(2)}</p>
+          <p className="font-semibold"> Amount: ${totalAmount.toFixed(2)}</p>
+          <p className="font-semibold">Total Amount: ${Number(totalTax.toFixed(2)) + Number(totalAmount.toFixed(2))- discountAmount}</p>
+        </div>
       </div>
     </div>
   );
