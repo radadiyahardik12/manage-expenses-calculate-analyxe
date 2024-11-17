@@ -372,7 +372,7 @@ const App = () => {
           }
           <p className=" font-semibold ">Total Tax: ${totalTax.toFixed(2)}</p>
           <p className="font-semibold"> Amount: ${totalAmount.toFixed(2)}</p>
-          <p className="font-semibold">Total Amount: ${Number(totalTax.toFixed(2)) + Number(totalAmount.toFixed(2))- itemDicount.tax_discount_type.value === 'no_discount' ? 0 : Number(discountAmount)}</p>
+          <p className="font-semibold">Total Amount: ${Number(totalTax.toFixed(2)) + Number(totalAmount.toFixed(2)) - (itemDicount.tax_discount_type.value === 'no_discount' ? 0 : Number(discountAmount))}</p>
         </div>
       </div>
     </div>
